@@ -3,5 +3,5 @@
 version = 4
 
 [[package]]
-name = "rs-klc"
-version = "0.1.1"
+name = "korean-lunar-calendar"
+version = "0.1.0"

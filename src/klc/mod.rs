@@ -159,18 +159,27 @@ const KOREAN_LUNAR_DATA: [u32; 660] = [
     0x83015b25, 0xc2c406d4, 0x82c60ada, 0x830138b6,
 ];
 
+/// Represents the days of the week.
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum DayOfWeek {
-    Monday,    // Corresponds to JDN % 7 = 0
-    Tuesday,   // Corresponds to JDN % 7 = 1
+    /// Monday (월요일)
+    Monday, // Corresponds to JDN % 7 = 0
+    /// Tuesday (화요일)
+    Tuesday, // Corresponds to JDN % 7 = 1
+    /// Wednesday (수요일)
     Wednesday, // Corresponds to JDN % 7 = 2
-    Thursday,  // Corresponds to JDN % 7 = 3
-    Friday,    // Corresponds to JDN % 7 = 4
-    Saturday,  // Corresponds to JDN % 7 = 5
-    Sunday,    // Corresponds to JDN % 7 = 6
+    /// Thursday (목요일)
+    Thursday, // Corresponds to JDN % 7 = 3
+    /// Friday (금요일)
+    Friday, // Corresponds to JDN % 7 = 4
+    /// Saturday (토요일)
+    Saturday, // Corresponds to JDN % 7 = 5
+    /// Sunday (일요일)
+    Sunday, // Corresponds to JDN % 7 = 6
 }
 
 impl LunarSolarConverter {
+    /// Creates a new, default `LunarSolarConverter` instance.
     pub fn new() -> Self {
         LunarSolarConverter::default()
     }
@@ -372,6 +381,423 @@ impl LunarSolarConverter {
         }
     }
 
+    /// Sets the converter's date based on a Lunar date.
+    ///
+    /// # Arguments
+    /// * `lunar_year` - The lunar year.
+    /// * `lunar_month` - The lunar month (1-12).
+    /// * `lunar_day` - The lunar day.
+    /// * `is_intercalation` - `true` if the month is an intercalary (leap) month (윤달).
+    ///
+    /// # Returns
+    /// `true` if the provided lunar date is valid and within the supported range,
+    /// `false` otherwise. If `true`, the corresponding solar date is calculated and stored.
+    pub fn set_lunar_date(
+        &mut self,
+        lunar_year: i32,
+        lunar_month: u32,
+        lunar_day: u32,
+        is_intercalation: bool,
+    ) -> bool {
+        let mut is_valid = false;
+
+        if Self::check_valid_date(
+            true,
+            is_intercalation,
+            lunar_year as u32,
+            lunar_month,
+            lunar_day,
+        ) {
+            self.is_intercalation = is_intercalation
+                && (Self::get_lunar_intercalation_month(Self::get_lunar_data(lunar_year))
+                    == lunar_month);
+            self.set_solar_date_by_lunar_date(
+                lunar_year,
+                lunar_month,
+                lunar_day,
+                self.is_intercalation,
+            );
+
+            is_valid = true;
+        }
+
+        is_valid
+    }
+
+    /// Sets the converter's date based on a Solar (Gregorian) date.
+    ///
+    /// # Arguments
+    /// * `solar_year` - The solar year.
+    /// * `solar_month` - The solar month (1-12).
+    /// * `solar_day` - The solar day.
+    ///
+    /// # Returns
+    /// `true` if the provided solar date is valid and within the supported range
+    /// (handles the 1582 Gregorian reform gap), `false` otherwise. If `true`,
+    /// the corresponding lunar date is calculated and stored.
+    pub fn set_solar_date(&mut self, solar_year: u32, solar_month: u32, solar_day: u32) -> bool {
+        let mut is_valid = false;
+
+        if Self::check_valid_date(false, false, solar_year, solar_month, solar_day) {
+            self.set_lunar_date_by_solar_date(solar_year, solar_month, solar_day);
+            is_valid = true;
+        }
+
+        is_valid
+    }
+
+    fn get_gapja(&mut self) {
+        let abs_days = Self::get_lunar_abs_days(
+            self.lunar_year,
+            self.lunar_month,
+            self.lunar_day,
+            self.is_intercalation,
+        );
+
+        if abs_days > 0 {
+            self.gapja_year_inx[0] = Some(
+                ((self.lunar_year + 7) - KOREAN_LUNAR_BASE_YEAR) as usize % KOREAN_CHEONGAN.len(),
+            );
+            self.gapja_year_inx[1] = Some(
+                ((self.lunar_year + 7) - KOREAN_LUNAR_BASE_YEAR) as usize % KOREAN_GANJI.len(),
+            );
+
+            let mut month_count = self.lunar_month;
+            month_count += 12 * ((self.lunar_year - KOREAN_LUNAR_BASE_YEAR) as u32);
+            self.gapja_month_inx[0] = Some((month_count + 5) as usize % KOREAN_CHEONGAN.len());
+            self.gapja_month_inx[1] = Some((month_count + 1) as usize % KOREAN_GANJI.len());
+
+            self.gapja_day_inx[0] = Some((abs_days + 4) as usize % KOREAN_CHEONGAN.len());
+            self.gapja_day_inx[1] = Some(abs_days as usize % KOREAN_GANJI.len());
+        } else {
+            self.gapja_year_inx = [None, None, None];
+            self.gapja_month_inx = [None, None, None];
+            self.gapja_day_inx = [None, None, None];
+        }
+    }
+
+    /// Returns the calculated Korean Gapja (간지) string for the current date.
+    /// Format: \"[Year]년 [Month]월 [Day]일\" (e.g., \"임인년 정미월 갑자일\").
+    /// Appends \" (윤월)\" if the current lunar month is intercalary.
+    /// Returns an empty string if the date is invalid.
+    pub fn get_gapja_string(&mut self) -> String {
+        self.get_gapja();
+
+        let mut gapja_string = String::new();
+
+        if let (Some(year_cheongan), Some(year_ganji)) =
+            (self.gapja_year_inx[0], self.gapja_year_inx[1])
+        {
+            gapja_string.push(KOREAN_CHEONGAN[year_cheongan]);
+            gapja_string.push(KOREAN_GANJI[year_ganji]);
+            gapja_string.push(KOREAN_GAPJA_UNIT[0]);
+        } else {
+            return "".to_string();
+        }
+
+        gapja_string.push(' ');
+
+        if let (Some(month_cheongan), Some(month_ganji)) =
+            (self.gapja_month_inx[0], self.gapja_month_inx[1])
+        {
+            gapja_string.push(KOREAN_CHEONGAN[month_cheongan]);
+            gapja_string.push(KOREAN_GANJI[month_ganji]);
+            gapja_string.push(KOREAN_GAPJA_UNIT[1]);
+        } else {
+            return "".to_string();
+        }
+
+        gapja_string.push(' ');
+
+        if let (Some(day_cheongan), Some(day_ganji)) =
+            (self.gapja_day_inx[0], self.gapja_day_inx[1])
+        {
+            gapja_string.push(KOREAN_CHEONGAN[day_cheongan]);
+            gapja_string.push(KOREAN_GANJI[day_ganji]);
+            gapja_string.push(KOREAN_GAPJA_UNIT[2]);
+        } else {
+            return "".to_string();
+        }
+
+        if self.is_intercalation {
+            gapja_string.push_str(" (");
+            gapja_string.push(INTERCALATION_STR[0]);
+            gapja_string.push(KOREAN_GAPJA_UNIT[1]);
+            gapja_string.push(')');
+        }
+
+        gapja_string
+    }
+
+    /// Returns the calculated Chinese Gapja string for the current date.
+    /// Format: \"[Year]年 [Month]月 [Day]日\" (e.g., \"壬寅年 丁未月 甲子日\").
+    /// Appends \" (閏月)\" if the current lunar month is intercalary.
+    /// Returns an empty string if the date is invalid.
+    pub fn get_chinese_gapja_string(&mut self) -> String {
+        self.get_gapja();
+
+        let mut gapja_string = String::new();
+
+        if let (Some(year_cheongan), Some(year_ganji)) =
+            (self.gapja_year_inx[0], self.gapja_year_inx[1])
+        {
+            gapja_string.push(CHINESE_CHEONGAN[year_cheongan]);
+            gapja_string.push(CHINESE_GANJI[year_ganji]);
+            gapja_string.push(CHINESE_GAPJA_UNIT[0]);
+        } else {
+            return "".to_string();
+        }
+
+        gapja_string.push(' ');
+
+        if let (Some(month_cheongan), Some(month_ganji)) =
+            (self.gapja_month_inx[0], self.gapja_month_inx[1])
+        {
+            gapja_string.push(CHINESE_CHEONGAN[month_cheongan]);
+            gapja_string.push(CHINESE_GANJI[month_ganji]);
+            gapja_string.push(CHINESE_GAPJA_UNIT[1]);
+        } else {
+            return "".to_string();
+        }
+
+        gapja_string.push(' ');
+
+        if let (Some(day_cheongan), Some(day_ganji)) =
+            (self.gapja_day_inx[0], self.gapja_day_inx[1])
+        {
+            gapja_string.push(CHINESE_CHEONGAN[day_cheongan]);
+            gapja_string.push(CHINESE_GANJI[day_ganji]);
+            gapja_string.push(CHINESE_GAPJA_UNIT[2]);
+        } else {
+            return "".to_string();
+        }
+
+        if self.is_intercalation {
+            gapja_string.push_str(" (");
+            gapja_string.push(INTERCALATION_STR[1]);
+            gapja_string.push(CHINESE_GAPJA_UNIT[1]);
+            gapja_string.push(')');
+        }
+
+        gapja_string
+    }
+
+    /// Returns the calculated Lunar date in ISO 8601 format (YYYY-MM-DD).
+    /// Appends " Intercalation" if the current lunar month is intercalary.
+    pub fn get_lunar_iso_format(&self) -> String {
+        let mut iso_str = format!(
+            "{:04}-{:02}-{:02}",
+            self.lunar_year, self.lunar_month, self.lunar_day
+        );
+
+        if self.is_intercalation {
+            iso_str.push_str(" Intercalation");
+        }
+
+        iso_str
+    }
+
+    /// Returns the calculated Solar date in ISO 8601 format (YYYY-MM-DD).
+    pub fn get_solar_iso_format(&self) -> String {
+        format!(
+            "{:04}-{:02}-{:02}",
+            self.solar_year, self.solar_month, self.solar_day
+        )
+    }
+
+    /// Calculates the Julian Day Number (JDN) for a given Solar date.
+    ///
+    /// The JDN is the integer number of days elapsed since noon UTC on January 1, 4713 BC (Julian calendar).
+    /// This implementation uses the algorithm described on Wikipedia and other sources,
+    /// correctly handling the transition from the Julian to the Gregorian calendar in October 1582.
+    ///
+    /// # Arguments
+    /// * `year` - The solar year.
+    /// * `month` - The solar month (1-12).
+    /// * `day` - The solar day.
+    ///
+    /// # Returns
+    /// `Some(u32)` containing the JDN if the date is valid, or `None` if the date
+    /// is invalid (e.g., within the 1582 Gregorian reform gap from Oct 5 to Oct 14).
+    ///
+    /// # Example
+    /// ```
+    /// use korean_lunar_calendar::LunarSolarConverter;
+    /// assert_eq!(LunarSolarConverter::get_julian_day_number(2022, 7, 10), Some(2459771));
+    /// assert_eq!(LunarSolarConverter::get_julian_day_number(1582, 10, 4), Some(2299160)); // Last Julian day
+    /// assert_eq!(LunarSolarConverter::get_julian_day_number(1582, 10, 15), Some(2299161)); // First Gregorian day
+    /// assert_eq!(LunarSolarConverter::get_julian_day_number(1582, 10, 10), None); // Invalid date in gap
+    /// ```
+    pub fn get_julian_day_number(year: u32, month: u32, day: u32) -> Option<u32> {
+        // Check for invalid date in the Gregorian reform gap
+        if year == 1582 && month == 10 && day > 4 && day < 15 {
+            return None;
+        }
+        // Basic month/day validation (simplified, primarily for algorithm safety)
+        if month == 0 || month > 12 || day == 0 || day > 31 {
+            return None;
+        }
+
+        // Use i32 for calculations
+        let y = year as i32;
+        let m = month as i32;
+        let d = day as i32;
+
+        // Adjust month/year for Jan/Feb for calculation
+        let adj_y = if m <= 2 { y - 1 } else { y };
+        let adj_m = if m <= 2 { m + 12 } else { m };
+
+        // Calculate base Julian part using integer arithmetic
+        let julian_base = (1461 * (adj_y + 4716)) / 4 + (153 * (adj_m + 1)) / 5 + d;
+
+        // Determine Gregorian correction term 'b'
+        let b = if y > 1582 || (y == 1582 && m > 10) || (y == 1582 && m == 10 && d >= 15) {
+            // Apply correction only for Gregorian dates (starting from 1582-10-15)
+            let term1 = adj_y / 100; // Note: Use adj_y here consistent with algorithm derivations
+            2 - term1 + term1 / 4
+        } else {
+            // No correction for Julian dates (up to 1582-10-04)
+            0
+        };
+
+        // Combine base, correction, and standard offset (-1524)
+        let jdn = julian_base + b - 1524;
+
+        Some(jdn as u32)
+    }
+
+    /// Calculates the day of the week for a given Solar date.
+    ///
+    /// Uses the Julian Day Number calculation internally.
+    ///
+    /// # Arguments
+    /// * `year` - The solar year.
+    /// * `month` - The solar month (1-12).
+    /// * `day` - The solar day.
+    ///
+    /// # Returns
+    /// `Some(DayOfWeek)` if the date is valid, or `None` if the date is invalid (e.g., within the 1582 gap).
+    ///
+    /// # Example
+    /// ```
+    /// use korean_lunar_calendar::{LunarSolarConverter, DayOfWeek};
+    /// assert_eq!(LunarSolarConverter::get_day_of_week(2022, 7, 10), Some(DayOfWeek::Sunday));
+    /// assert_eq!(LunarSolarConverter::get_day_of_week(1582, 10, 4), Some(DayOfWeek::Thursday));
+    /// assert_eq!(LunarSolarConverter::get_day_of_week(1582, 10, 15), Some(DayOfWeek::Friday));
+    /// assert_eq!(LunarSolarConverter::get_day_of_week(1582, 10, 10), None);
+    /// ```
+    pub fn get_day_of_week(year: u32, month: u32, day: u32) -> Option<DayOfWeek> {
+        Self::get_julian_day_number(year, month, day).map(|jdn| {
+            // JDN mod 7: 0=Mon, 1=Tue, 2=Wed, 3=Thu, 4=Fri, 5=Sat, 6=Sun
+            match jdn % 7 {
+                0 => DayOfWeek::Monday,
+                1 => DayOfWeek::Tuesday,
+                2 => DayOfWeek::Wednesday,
+                3 => DayOfWeek::Thursday,
+                4 => DayOfWeek::Friday,
+                5 => DayOfWeek::Saturday,
+                _ => DayOfWeek::Sunday, // 6 and any unexpected remainder
+            }
+        })
+    }
+
+    /// Checks if a given solar year is a leap year according to the Gregorian calendar rules.
+    ///
+    /// For years before or during 1582, the Julian calendar rule (divisible by 4) is used.
+    /// For years after 1582, the Gregorian rules apply: divisible by 4, unless divisible by 100 but not by 400.
+    ///
+    /// # Arguments
+    /// * `year` - The solar year.
+    ///
+    /// # Returns
+    /// `true` if the year is a leap year, `false` otherwise.
+    ///
+    /// # Example
+    /// ```
+    /// use korean_lunar_calendar::LunarSolarConverter;
+    /// assert!(LunarSolarConverter::is_solar_leap_year(2024));
+    /// assert!(!LunarSolarConverter::is_solar_leap_year(2023));
+    /// assert!(!LunarSolarConverter::is_solar_leap_year(1900));
+    /// assert!(LunarSolarConverter::is_solar_leap_year(2000));
+    /// assert!(LunarSolarConverter::is_solar_leap_year(1500)); // Julian leap year
+    /// ```
+    pub fn is_solar_leap_year(year: u32) -> bool {
+        // Reuse the internal logic which handles the Gregorian reform
+        Self::is_gregorian_leap(year as i32)
+    }
+
+    /// Gets the intercalary (leap) month (윤달) for a given lunar year, if one exists.
+    ///
+    /// Based on the pre-calculated `KOREAN_LUNAR_DATA`.
+    ///
+    /// # Arguments
+    /// * `year` - The lunar year.
+    ///
+    /// # Returns
+    /// `Some(u32)` containing the intercalary month number (1-12) if the year has one,
+    /// or `None` if the year has no intercalary month or the year is outside the supported range.
+    ///
+    /// # Example
+    /// ```
+    /// use korean_lunar_calendar::LunarSolarConverter;
+    /// assert_eq!(LunarSolarConverter::get_lunar_intercalary_month(2023), Some(2)); // 윤2월
+    /// assert_eq!(LunarSolarConverter::get_lunar_intercalary_month(2020), Some(4)); // 윤4월
+    /// assert_eq!(LunarSolarConverter::get_lunar_intercalary_month(2022), None);
+    /// ```
+    pub fn get_lunar_intercalary_month(year: i32) -> Option<u32> {
+        if year < KOREAN_LUNAR_BASE_YEAR
+            || year > KOREAN_LUNAR_BASE_YEAR + KOREAN_LUNAR_DATA.len() as i32 - 1
+        {
+            return None; // Year out of supported range
+        }
+        let lunar_data = Self::get_lunar_data(year);
+        let intercalary_month = Self::get_lunar_intercalation_month(lunar_data);
+        if intercalary_month > 0 {
+            Some(intercalary_month)
+        } else {
+            None
+        }
+    }
+
+    // --- Getters for date fields ---
+    /// Returns the currently stored solar year.
+    #[allow(dead_code)]
+    pub fn solar_year(&self) -> u32 {
+        self.solar_year
+    }
+    /// Returns the currently stored solar month.
+    #[allow(dead_code)]
+    pub fn solar_month(&self) -> u32 {
+        self.solar_month
+    }
+    /// Returns the currently stored solar day.
+    #[allow(dead_code)]
+    pub fn solar_day(&self) -> u32 {
+        self.solar_day
+    }
+    /// Returns the currently stored lunar year.
+    pub fn lunar_year(&self) -> i32 {
+        self.lunar_year
+    }
+    /// Returns the currently stored lunar month.
+    #[allow(dead_code)]
+    pub fn lunar_month(&self) -> u32 {
+        self.lunar_month
+    }
+    /// Returns the currently stored lunar day.
+    #[allow(dead_code)]
+    pub fn lunar_day(&self) -> u32 {
+        self.lunar_day
+    }
+    /// Returns `true` if the currently stored lunar date is an intercalary month.
+    #[allow(dead_code)]
+    pub fn is_intercalation(&self) -> bool {
+        self.is_intercalation
+    }
+    // ------------------------------
+
+    // --- Internal helper methods ---
+
     fn set_solar_date_by_lunar_date(
         &mut self,
         lunar_year: i32,
@@ -500,311 +926,6 @@ impl LunarSolarConverter {
 
         is_valid
     }
-
-    pub fn set_lunar_date(
-        &mut self,
-        lunar_year: i32,
-        lunar_month: u32,
-        lunar_day: u32,
-        is_intercalation: bool,
-    ) -> bool {
-        let mut is_valid = false;
-
-        if Self::check_valid_date(
-            true,
-            is_intercalation,
-            lunar_year as u32,
-            lunar_month,
-            lunar_day,
-        ) {
-            self.is_intercalation = is_intercalation
-                && (Self::get_lunar_intercalation_month(Self::get_lunar_data(lunar_year))
-                    == lunar_month);
-            self.set_solar_date_by_lunar_date(
-                lunar_year,
-                lunar_month,
-                lunar_day,
-                self.is_intercalation,
-            );
-
-            is_valid = true;
-        }
-
-        is_valid
-    }
-
-    pub fn set_solar_date(&mut self, solar_year: u32, solar_month: u32, solar_day: u32) -> bool {
-        let mut is_valid = false;
-
-        if Self::check_valid_date(false, false, solar_year, solar_month, solar_day) {
-            self.set_lunar_date_by_solar_date(solar_year, solar_month, solar_day);
-            is_valid = true;
-        }
-
-        is_valid
-    }
-
-    fn get_gapja(&mut self) {
-        let abs_days = Self::get_lunar_abs_days(
-            self.lunar_year,
-            self.lunar_month,
-            self.lunar_day,
-            self.is_intercalation,
-        );
-
-        if abs_days > 0 {
-            self.gapja_year_inx[0] = Some(
-                ((self.lunar_year + 7) - KOREAN_LUNAR_BASE_YEAR) as usize % KOREAN_CHEONGAN.len(),
-            );
-            self.gapja_year_inx[1] = Some(
-                ((self.lunar_year + 7) - KOREAN_LUNAR_BASE_YEAR) as usize % KOREAN_GANJI.len(),
-            );
-
-            let mut month_count = self.lunar_month;
-            month_count += 12 * ((self.lunar_year - KOREAN_LUNAR_BASE_YEAR) as u32);
-            self.gapja_month_inx[0] = Some((month_count + 5) as usize % KOREAN_CHEONGAN.len());
-            self.gapja_month_inx[1] = Some((month_count + 1) as usize % KOREAN_GANJI.len());
-
-            self.gapja_day_inx[0] = Some((abs_days + 4) as usize % KOREAN_CHEONGAN.len());
-            self.gapja_day_inx[1] = Some(abs_days as usize % KOREAN_GANJI.len());
-        } else {
-            self.gapja_year_inx = [None, None, None];
-            self.gapja_month_inx = [None, None, None];
-            self.gapja_day_inx = [None, None, None];
-        }
-    }
-
-    pub fn get_gapja_string(&mut self) -> String {
-        self.get_gapja();
-
-        let mut gapja_string = String::new();
-
-        if let (Some(year_cheongan), Some(year_ganji)) =
-            (self.gapja_year_inx[0], self.gapja_year_inx[1])
-        {
-            gapja_string.push(KOREAN_CHEONGAN[year_cheongan]);
-            gapja_string.push(KOREAN_GANJI[year_ganji]);
-            gapja_string.push(KOREAN_GAPJA_UNIT[0]);
-        } else {
-            return "".to_string();
-        }
-
-        gapja_string.push(' ');
-
-        if let (Some(month_cheongan), Some(month_ganji)) =
-            (self.gapja_month_inx[0], self.gapja_month_inx[1])
-        {
-            gapja_string.push(KOREAN_CHEONGAN[month_cheongan]);
-            gapja_string.push(KOREAN_GANJI[month_ganji]);
-            gapja_string.push(KOREAN_GAPJA_UNIT[1]);
-        } else {
-            return "".to_string();
-        }
-
-        gapja_string.push(' ');
-
-        if let (Some(day_cheongan), Some(day_ganji)) =
-            (self.gapja_day_inx[0], self.gapja_day_inx[1])
-        {
-            gapja_string.push(KOREAN_CHEONGAN[day_cheongan]);
-            gapja_string.push(KOREAN_GANJI[day_ganji]);
-            gapja_string.push(KOREAN_GAPJA_UNIT[2]);
-        } else {
-            return "".to_string();
-        }
-
-        if self.is_intercalation {
-            gapja_string.push_str(" (");
-            gapja_string.push(INTERCALATION_STR[0]);
-            gapja_string.push(KOREAN_GAPJA_UNIT[1]);
-            gapja_string.push(')');
-        }
-
-        gapja_string
-    }
-
-    pub fn get_chinese_gapja_string(&mut self) -> String {
-        self.get_gapja();
-
-        let mut gapja_string = String::new();
-
-        if let (Some(year_cheongan), Some(year_ganji)) =
-            (self.gapja_year_inx[0], self.gapja_year_inx[1])
-        {
-            gapja_string.push(CHINESE_CHEONGAN[year_cheongan]);
-            gapja_string.push(CHINESE_GANJI[year_ganji]);
-            gapja_string.push(CHINESE_GAPJA_UNIT[0]);
-        } else {
-            return "".to_string();
-        }
-
-        gapja_string.push(' ');
-
-        if let (Some(month_cheongan), Some(month_ganji)) =
-            (self.gapja_month_inx[0], self.gapja_month_inx[1])
-        {
-            gapja_string.push(CHINESE_CHEONGAN[month_cheongan]);
-            gapja_string.push(CHINESE_GANJI[month_ganji]);
-            gapja_string.push(CHINESE_GAPJA_UNIT[1]);
-        } else {
-            return "".to_string();
-        }
-
-        gapja_string.push(' ');
-
-        if let (Some(day_cheongan), Some(day_ganji)) =
-            (self.gapja_day_inx[0], self.gapja_day_inx[1])
-        {
-            gapja_string.push(CHINESE_CHEONGAN[day_cheongan]);
-            gapja_string.push(CHINESE_GANJI[day_ganji]);
-            gapja_string.push(CHINESE_GAPJA_UNIT[2]);
-        } else {
-            return "".to_string();
-        }
-
-        if self.is_intercalation {
-            gapja_string.push_str(" (");
-            gapja_string.push(INTERCALATION_STR[1]);
-            gapja_string.push(CHINESE_GAPJA_UNIT[1]);
-            gapja_string.push(')');
-        }
-
-        gapja_string
-    }
-
-    pub fn get_lunar_iso_format(&self) -> String {
-        let mut iso_str = format!(
-            "{:04}-{:02}-{:02}",
-            self.lunar_year, self.lunar_month, self.lunar_day
-        );
-
-        if self.is_intercalation {
-            iso_str.push_str(" Intercalation");
-        }
-
-        iso_str
-    }
-
-    pub fn get_solar_iso_format(&self) -> String {
-        format!(
-            "{:04}-{:02}-{:02}",
-            self.solar_year, self.solar_month, self.solar_day
-        )
-    }
-
-    /// Calculates the Julian Day Number (JDN) for a given Solar date.
-    /// The JDN is the integer number of days elapsed since noon UTC on January 1, 4713 BC.
-    ///
-    /// Handles the transition from the Julian to the Gregorian calendar in October 1582.
-    /// Returns `None` if the date is invalid (e.g., within the 1582 gap).
-    pub fn get_julian_day_number(year: u32, month: u32, day: u32) -> Option<u32> {
-        // Check for invalid date in the Gregorian reform gap
-        if year == 1582 && month == 10 && day > 4 && day < 15 {
-            return None;
-        }
-        // Basic month/day validation (simplified, primarily for algorithm safety)
-        if month == 0 || month > 12 || day == 0 || day > 31 {
-            return None;
-        }
-
-        // Use i32 for calculations
-        let y = year as i32;
-        let m = month as i32;
-        let d = day as i32;
-
-        // Adjust month/year for Jan/Feb for calculation
-        let adj_y = if m <= 2 { y - 1 } else { y };
-        let adj_m = if m <= 2 { m + 12 } else { m };
-
-        // Calculate base Julian part using integer arithmetic
-        let julian_base = (1461 * (adj_y + 4716)) / 4 + (153 * (adj_m + 1)) / 5 + d;
-
-        // Determine Gregorian correction term 'b'
-        let b = if y > 1582 || (y == 1582 && m > 10) || (y == 1582 && m == 10 && d >= 15) {
-            // Apply correction only for Gregorian dates (starting from 1582-10-15)
-            let term1 = adj_y / 100; // Note: Use adj_y here consistent with algorithm derivations
-            2 - term1 + term1 / 4
-        } else {
-            // No correction for Julian dates (up to 1582-10-04)
-            0
-        };
-
-        // Combine base, correction, and standard offset (-1524)
-        let jdn = julian_base + b - 1524;
-
-        Some(jdn as u32)
-    }
-
-    /// Calculates the day of the week for a given Solar date.
-    /// Returns `None` if the date is invalid (e.g., within the 1582 gap).
-    pub fn get_day_of_week(year: u32, month: u32, day: u32) -> Option<DayOfWeek> {
-        Self::get_julian_day_number(year, month, day).map(|jdn| {
-            // JDN mod 7: 0=Mon, 1=Tue, 2=Wed, 3=Thu, 4=Fri, 5=Sat, 6=Sun
-            match jdn % 7 {
-                0 => DayOfWeek::Monday,
-                1 => DayOfWeek::Tuesday,
-                2 => DayOfWeek::Wednesday,
-                3 => DayOfWeek::Thursday,
-                4 => DayOfWeek::Friday,
-                5 => DayOfWeek::Saturday,
-                _ => DayOfWeek::Sunday, // 6 and any unexpected remainder
-            }
-        })
-    }
-
-    /// Checks if a given solar year is a leap year.
-    /// Uses Gregorian rules (and Julian rules for years <= 1582).
-    pub fn is_solar_leap_year(year: u32) -> bool {
-        // Reuse the internal logic which handles the Gregorian reform
-        Self::is_gregorian_leap(year as i32)
-    }
-
-    /// Gets the intercalary month (윤달) for a given lunar year, if one exists.
-    /// Returns `Some(month)` if an intercalary month exists, otherwise `None`.
-    pub fn get_lunar_intercalary_month(year: i32) -> Option<u32> {
-        if year < KOREAN_LUNAR_BASE_YEAR
-            || year > KOREAN_LUNAR_BASE_YEAR + KOREAN_LUNAR_DATA.len() as i32 - 1
-        {
-            return None; // Year out of supported range
-        }
-        let lunar_data = Self::get_lunar_data(year);
-        let intercalary_month = Self::get_lunar_intercalation_month(lunar_data);
-        if intercalary_month > 0 {
-            Some(intercalary_month)
-        } else {
-            None
-        }
-    }
-
-    // --- Getters for date fields ---
-    #[allow(dead_code)]
-    pub fn solar_year(&self) -> u32 {
-        self.solar_year
-    }
-    #[allow(dead_code)]
-    pub fn solar_month(&self) -> u32 {
-        self.solar_month
-    }
-    #[allow(dead_code)]
-    pub fn solar_day(&self) -> u32 {
-        self.solar_day
-    }
-    pub fn lunar_year(&self) -> i32 {
-        self.lunar_year
-    }
-    #[allow(dead_code)]
-    pub fn lunar_month(&self) -> u32 {
-        self.lunar_month
-    }
-    #[allow(dead_code)]
-    pub fn lunar_day(&self) -> u32 {
-        self.lunar_day
-    }
-    #[allow(dead_code)]
-    pub fn is_intercalation(&self) -> bool {
-        self.is_intercalation
-    }
-    // ------------------------------
 }
 
 #[cfg(test)]
