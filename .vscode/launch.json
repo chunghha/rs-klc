@@ -7,33 +7,14 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug executable 'ldapquick'",
+            "name": "Debug executable 'rs-klc'",
             "cargo": {
                 "args": [
                     "build",
-                    "--bin=ldapquick",
-                    "--package=ldap-async-demo"
+                    "--bin=rs-klc"
                 ],
                 "filter": {
-                    "name": "ldapquick",
-                    "kind": "bin"
-                }
-            },
-            "args": [],
-            "cwd": "${workspaceFolder}"
-        },
-        {
-            "type": "lldb",
-            "request": "launch",
-            "name": "Debug executable 'ldapreport'",
-            "cargo": {
-                "args": [
-                    "build",
-                    "--bin=ldapreport",
-                    "--package=ldap-async-demo"
-                ],
-                "filter": {
-                    "name": "ldapreport",
+                    "name": "rs-klc",
                     "kind": "bin"
                 }
             },
