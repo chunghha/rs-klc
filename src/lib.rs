@@ -4,7 +4,7 @@
 //! Add this to your `Cargo.toml`:
 //! ```toml
 //! [dependencies]
-//! korean-lunar-calendar = "0.1" // Check crates.io for the latest version
+//! rs-klc = "0.1" // Check crates.io for the latest version
 //! ```
 //!
 //! ## Examples
