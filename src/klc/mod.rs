@@ -408,6 +408,9 @@ impl LunarSolarConverter {
             lunar_month,
             lunar_day,
         ) {
+            self.lunar_year = lunar_year;
+            self.lunar_month = lunar_month;
+            self.lunar_day = lunar_day;
             self.is_intercalation = is_intercalation
                 && (Self::get_lunar_intercalation_month(Self::get_lunar_data(lunar_year))
                     == lunar_month);
@@ -439,6 +442,9 @@ impl LunarSolarConverter {
         let mut is_valid = false;
 
         if Self::check_valid_date(false, false, solar_year, solar_month, solar_day) {
+            self.solar_year = solar_year;
+            self.solar_month = solar_month;
+            self.solar_day = solar_day;
             self.set_lunar_date_by_solar_date(solar_year, solar_month, solar_day);
             is_valid = true;
         }
@@ -622,7 +628,7 @@ impl LunarSolarConverter {
     ///
     /// # Example
     /// ```
-    /// use korean_lunar_calendar::LunarSolarConverter;
+    /// use rs_klc::LunarSolarConverter;
     /// assert_eq!(LunarSolarConverter::get_julian_day_number(2022, 7, 10), Some(2459771));
     /// assert_eq!(LunarSolarConverter::get_julian_day_number(1582, 10, 4), Some(2299160)); // Last Julian day
     /// assert_eq!(LunarSolarConverter::get_julian_day_number(1582, 10, 15), Some(2299161)); // First Gregorian day
@@ -680,7 +686,7 @@ impl LunarSolarConverter {
     ///
     /// # Example
     /// ```
-    /// use korean_lunar_calendar::{LunarSolarConverter, DayOfWeek};
+    /// use rs_klc::{LunarSolarConverter, DayOfWeek};
     /// assert_eq!(LunarSolarConverter::get_day_of_week(2022, 7, 10), Some(DayOfWeek::Sunday));
     /// assert_eq!(LunarSolarConverter::get_day_of_week(1582, 10, 4), Some(DayOfWeek::Thursday));
     /// assert_eq!(LunarSolarConverter::get_day_of_week(1582, 10, 15), Some(DayOfWeek::Friday));
@@ -714,7 +720,7 @@ impl LunarSolarConverter {
     ///
     /// # Example
     /// ```
-    /// use korean_lunar_calendar::LunarSolarConverter;
+    /// use rs_klc::LunarSolarConverter;
     /// assert!(LunarSolarConverter::is_solar_leap_year(2024));
     /// assert!(!LunarSolarConverter::is_solar_leap_year(2023));
     /// assert!(!LunarSolarConverter::is_solar_leap_year(1900));
@@ -739,7 +745,7 @@ impl LunarSolarConverter {
     ///
     /// # Example
     /// ```
-    /// use korean_lunar_calendar::LunarSolarConverter;
+    /// use rs_klc::LunarSolarConverter;
     /// assert_eq!(LunarSolarConverter::get_lunar_intercalary_month(2023), Some(2)); // 윤2월
     /// assert_eq!(LunarSolarConverter::get_lunar_intercalary_month(2020), Some(4)); // 윤4월
     /// assert_eq!(LunarSolarConverter::get_lunar_intercalary_month(2022), None);

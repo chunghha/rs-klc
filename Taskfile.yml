@@ -1,0 +1,97 @@
+version: "3"
+
+tasks:
+  fmt:
+    desc: Format Rust code using cargo fmt
+    cmds:
+      - cargo fmt
+
+  lint:
+    desc: Lint Rust code using cargo clippy
+    cmds:
+      - cargo clippy
+
+  test:
+    desc: Run tests using cargo test
+    cmds:
+      - cargo test
+
+  build:
+    desc: Build the project using cargo build
+    deps: [fmt, lint]
+    cmds:
+      - cargo build
+
+  check:
+    desc: Run format check, clippy, and tests
+    cmds:
+      - cargo fmt --check
+      - cargo clippy
+      - cargo test
+
+  clean:
+    desc: Clean the build directory
+    cmds:
+      - cargo clean
+
+  run:
+    desc: Run the main application
+    cmds:
+      - cargo run
+
+  example1:
+    desc: Run Example 01 - Basic Solar to Lunar Conversion
+    cmds:
+      - cargo run --example 01_basic_conversion
+
+  example2:
+    desc: Run Example 02 - Lunar to Solar Conversion
+    cmds:
+      - cargo run --example 02_lunar_to_solar
+
+  example3:
+    desc: Run Example 03 - Intercalary Month Handling
+    cmds:
+      - cargo run --example 03_intercalary_month
+
+  example4:
+    desc: Run Example 04 - Gapja (Sexagenary Cycle) Calculation
+    cmds:
+      - cargo run --example 04_gapja_sexagenary
+
+  example5:
+    desc: Run Example 05 - Julian Day Number (JDN) Calculation
+    cmds:
+      - cargo run --example 05_julian_day_number
+
+  example6:
+    desc: Run Example 06 - Solar Leap Year Check
+    cmds:
+      - cargo run --example 06_leap_year
+
+  example7:
+    desc: Run Example 07 - Day of Week Calculation
+    cmds:
+      - cargo run --example 07_day_of_week
+
+  example8:
+    desc: Run Example 08 - Comprehensive Example
+    cmds:
+      - cargo run --example 08_comprehensive
+
+  run-examples:
+    desc: Run all examples
+    cmds:
+      - task: example1
+      - task: example2
+      - task: example3
+      - task: example4
+      - task: example5
+      - task: example6
+      - task: example7
+      - task: example8
+
+  benchmark:
+    desc: Run performance benchmark
+    cmds:
+      - cargo bench

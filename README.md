@@ -17,6 +17,8 @@ This library is based on the data and algorithms originally implemented in JavaS
 *   **Intercalary Month Handling**: Correctly identifies and processes intercalary (leap) months in the Lunar calendar during conversions.
 *   **ISO Formatting**: Provides simple ISO 8601 format output (`YYYY-MM-DD`) for both Lunar and Solar dates.
 
+See the [Examples](#examples) section for code demonstrating these features.
+
 ## Supported Date Range
 
 *   **Lunar**: 1391-01-01 to 2050-11-18
@@ -36,52 +38,91 @@ rs-klc = "0.1" # Check crates.io for the latest version
 Then use the library like this:
 
 ```rust
-use korean_lunar_calendar::{LunarSolarConverter, DayOfWeek};
+use rs_klc::{LunarSolarConverter, DayOfWeek};
 
-fn main() {
-    let mut converter = LunarSolarConverter::new();
+let mut converter = LunarSolarConverter::new();
 
-    // Set a Solar date and get Lunar info
-    if converter.set_solar_date(2022, 7, 10) {
-        println!("Solar: {}", converter.get_solar_iso_format()); // Output: 2022-07-10
-        println!("Lunar: {}", converter.get_lunar_iso_format()); // Output: 2022-06-12
-        println!("Gapja: {}", converter.get_gapja_string()); // Output: 임인년 정미월 갑자일
+// Set a Solar date and get Lunar info
+if converter.set_solar_date(2022, 7, 10) {
+    println!("Solar: {}", converter.get_solar_iso_format()); // Output: 2022-07-10
+    println!("Lunar: {}", converter.get_lunar_iso_format()); // Output: 2022-06-12
+    println!("Gapja: {}", converter.get_gapja_string()); // Output: 임인년 정미월 갑자일
 
-        // Get day of week for the solar date
-        if let Some(dow) = LunarSolarConverter::get_day_of_week(2022, 7, 10) {
-            println!("Day of Week: {:?}", dow); // Output: Sunday
-        }
-    } else {
-        println!("Invalid solar date");
+    // Get day of week for the solar date
+    if let Some(dow) = LunarSolarConverter::get_day_of_week(2022, 7, 10) {
+        println!("Day of Week: {:?}", dow); // Output: Sunday
     }
-
-    println!("--- Check other features ---");
-
-    // Check solar leap year
-    let solar_year = 2024;
-    let is_solar_leap = LunarSolarConverter::is_solar_leap_year(solar_year);
-    println!("Solar Year {} Leap: {}", solar_year, is_solar_leap); // Output: true
-
-    // Check lunar intercalary month
-    let lunar_year = 2023;
-    if let Some(intercalary_month) = LunarSolarConverter::get_lunar_intercalary_month(lunar_year) {
-        println!("Lunar Year {} has intercalary month: {}", lunar_year, intercalary_month); // Output: 2 (윤2월)
-    } else {
-        println!("Lunar Year {} has no intercalary month.", lunar_year);
-    }
-
-    // Calculate JDN
-    if let Some(jdn) = LunarSolarConverter::get_julian_day_number(2022, 7, 10) {
-        println!("JDN for 2022-07-10: {}", jdn); // Output: 2459771
-    }
+} else {
+    println!("Invalid solar date");
 }
+
+println!("--- Check other features ---");
+
+// Check solar leap year
+let solar_year = 2024;
+let is_solar_leap = LunarSolarConverter::is_solar_leap_year(solar_year);
+println!("Solar Year {} Leap: {}", solar_year, is_solar_leap); // Output: true
+
+// Check lunar intercalary month
+let lunar_year = 2023;
+if let Some(intercalary_month) = LunarSolarConverter::get_lunar_intercalary_month(lunar_year) {
+    println!("Lunar Year {} has intercalary month: {}", lunar_year, intercalary_month); // Output: 2 (윤2월)
+} else {
+    println!("Lunar Year {} has no intercalary month.", lunar_year);
+}
+
+// Calculate JDN
+if let Some(jdn) = LunarSolarConverter::get_julian_day_number(2022, 7, 10) {
+    println!("JDN for 2022-07-10: {}", jdn); // Output: 2459771
+}
+```
+
+## Examples
+ 
+The `examples/` directory contains several examples demonstrating different features of the library. You can run them using `cargo` or `task`:
+
+*   `01_basic_conversion`: Basic Solar <-> Lunar conversion
+*   `02_lunar_to_solar`: Lunar to Solar conversion
+*   `03_intercalary_month`: Intercalary month handling
+*   `04_gapja_sexagenary`: Korean/Chinese Gapja calculation
+*   `05_julian_day_number`: Julian Day Number calculation
+*   `06_leap_year`: Solar leap year check
+*   `07_day_of_week`: Day of week calculation
+*   `08_comprehensive`: Comprehensive feature demo
+
+Run all examples:
+```bash
+task run-examples
 ```
 
 ## Building and Testing
 
-*   Build: `cargo build`
-*   Run example (if you add one to `examples/`): `cargo run --example <name>`
-*   Run tests: `cargo test`
+This project uses `cargo` for building and testing, and `task` (Taskfile) for convenience.
+
+*   **Build**: 
+    ```bash
+    cargo build
+    # or
+    task build
+    ```
+*   **Test**: 
+    ```bash
+    cargo test
+    # or
+    task test
+    ```
+*   **Run Examples**: 
+    ```bash
+    cargo run --example 01_basic_conversion
+    # or
+    task example1
+    ```
+*   **Lint**: 
+    ```bash
+    cargo clippy
+    # or
+    task lint
+    ```
 
 ## License
 

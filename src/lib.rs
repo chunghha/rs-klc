@@ -9,36 +9,34 @@
 //!
 //! ## Examples
 //! ```rust
-//! use korean_lunar_calendar::{LunarSolarConverter, DayOfWeek};
+//! use rs_klc::{LunarSolarConverter, DayOfWeek};
 //!
-//! fn main() {
-//!     let mut converter = LunarSolarConverter::new();
+//! let mut converter = LunarSolarConverter::new();
 //!
-//!     // Set a solar date (e.g., 2022-07-10)
-//!     if converter.set_solar_date(2022, 7, 10) {
-//!         println!("Solar: {}", converter.get_solar_iso_format());
-//!         println!("Lunar: {}", converter.get_lunar_iso_format());
-//!         println!("Gapja: {}", converter.get_gapja_string());
+//! // Set a solar date (e.g., 2022-07-10)
+//! if converter.set_solar_date(2022, 7, 10) {
+//!     println!("Solar: {}", converter.get_solar_iso_format());
+//!     println!("Lunar: {}", converter.get_lunar_iso_format());
+//!     println!("Gapja: {}", converter.get_gapja_string());
 //!
-//!         // Get day of week
-//!         if let Some(dow) = LunarSolarConverter::get_day_of_week(2022, 7, 10) {
-//!             println!("Day of Week: {:?}", dow);
-//!         }
-//!
-//!         // Check solar leap year
-//!         let is_solar_leap = LunarSolarConverter::is_solar_leap_year(2022);
-//!         println!("Solar Year 2022 Leap: {}", is_solar_leap);
-//!
-//!         // Check lunar intercalary month for the corresponding lunar year
-//!         let lunar_year = converter.lunar_year();
-//!         if let Some(intercalary_month) = LunarSolarConverter::get_lunar_intercalary_month(lunar_year) {
-//!             println!("Lunar Year {} has intercalary month: {}", lunar_year, intercalary_month);
-//!         } else {
-//!             println!("Lunar Year {} has no intercalary month.", lunar_year);
-//!         }
-//!     } else {
-//!         println!("Invalid solar date");
+//!     // Get day of week
+//!     if let Some(dow) = LunarSolarConverter::get_day_of_week(2022, 7, 10) {
+//!         println!("Day of Week: {:?}", dow);
 //!     }
+//!
+//!     // Check solar leap year
+//!     let is_solar_leap = LunarSolarConverter::is_solar_leap_year(2022);
+//!     println!("Solar Year 2022 Leap: {}", is_solar_leap);
+//!
+//!     // Check lunar intercalary month for the corresponding lunar year
+//!     let lunar_year = converter.lunar_year();
+//!     if let Some(intercalary_month) = LunarSolarConverter::get_lunar_intercalary_month(lunar_year) {
+//!         println!("Lunar Year {} has intercalary month: {}", lunar_year, intercalary_month);
+//!     } else {
+//!         println!("Lunar Year {} has no intercalary month.", lunar_year);
+//!     }
+//! } else {
+//!     println!("Invalid solar date");
 //! }
 //! ```
 
